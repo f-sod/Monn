@@ -1,3 +1,9 @@
+#!/usr/bin/python3
+
+__auteurs__ = ""
+__update_by__="ODJE Floriane"
+__data__ = "2022-03"
+
 from rdkit import Chem
 import numpy as np
 import os
@@ -5,6 +11,15 @@ from rdkit.Chem import AllChem
 import pickle
 
 def get_fasta_dict():
+	"""
+	Fill up a dictionary wile reading 
+	out1.6_pdbbind_seqs.fasta and out1.6_uniprot_uniprot_mapping.tab
+	Uniprot Id are keys , sequences are values
+	
+	Return
+	------
+	Dictionnary: uniprot_dict of 5256 elements
+	"""
 	uniprot_dict = {}
 	name,seq = '',''
 	with open('out1.6_pdbbind_seqs.fasta') as f:
@@ -29,6 +44,15 @@ def get_fasta_dict():
 	return uniprot_dict
 
 def get_pdbid_to_uniprotid(seq_dict):
+	"""
+	Fill up a dictionary wile reading 
+	INDEX_general_PL_name.2020 and out1.4_pdb_uniprot_mapping.tab
+	PDB IDs are keys , Uniprot IDs are values
+	
+	Return
+	------
+	Dictionnary: pdbid_to_uniprotid  of 19302 elements
+	"""
 	pdbid_set = set()
 	pdbid_without_official_uniprot_id  = []
 	pdbbind_mapping_dict = {}
@@ -37,8 +61,8 @@ def get_pdbid_to_uniprotid(seq_dict):
 			if line[0] != '#':
 				lines = line.strip().split('  ')
 				if lines[2] != '------':
-					pdbbind_mapping_dict[lines[0]] = lines[2] # cle code-pdb valeur code-uniprot
-					pdbid_set.add(lines[0]) # creation d'un set de code pdb
+					pdbbind_mapping_dict[lines[0]] = lines[2] 
+					pdbid_set.add(lines[0])
 				else:
 					pdbid_without_official_uniprot_id.append(lines[0])
 	print('pdbbind_mapping_dict',len(pdbbind_mapping_dict))
@@ -56,11 +80,19 @@ def get_pdbid_to_uniprotid(seq_dict):
 					uniprot_mapping_dict[pdbid] = [lines[1]]
 	print('uniprot_mapping_dict',len(uniprot_mapping_dict))
 	
+	"""
+	Some pdb id did not get official / matching UniProt id in the file
+	Index general name but got several in out1.4_pdb_uniprot_mapping.tab. 
+	Those elements are retrieved in the list inter_list. For those elements,
+	We check if at least a sequence (in seq_dict) is associated with the UniProt id,
+	Those having a sequence in the dictionary sequences are compared (by length)
+	The longest is associated with the PDB id in uniprot_mapping_dict.  
+	"""
+	
 	keys_with_multiple_value=[]
 	for pdbid in uniprot_mapping_dict:
 		if len(uniprot_mapping_dict[pdbid]) != 1:
 			keys_with_multiple_value.append(pdbid)
-	#print('keys with more than 1 value',len(keys_with_multiple_value))
 	inter_list=list(set(pdbid_without_official_uniprot_id ) & set(keys_with_multiple_value))
 	print(len(inter_list), inter_list)
 	for pdbid in inter_list:
@@ -71,13 +103,6 @@ def get_pdbid_to_uniprotid(seq_dict):
 				uniprot_mapping_dict[pdbid]=[referenced_uniprot_id[idx]]
 			else:
 				uniprot_mapping_dict[pdbid]=[referenced_uniprot_id[idx + 1]]
-
-#	uniprot_mapping_dict['4z0e'] = ['A0A024UZE1'] # MANUAL ASSIGNATION BC THEY HAVE TWO UNIPROT id ACCORDING TO out1.4_pdb_uniprot_mapping.tab BUT NONE IN INDEX_general_PL_name.2020 , WHICH TO CHOOSE ?
-#	uniprot_mapping_dict['5ku9'] = ['Q07820']
-#	uniprot_mapping_dict['5ufs'] = ['Q15466']
-#	uniprot_mapping_dict['5u51'] = ['Q5NFG1']
-#	uniprot_mapping_dict['4z0d'] = ['A0A024UZE1']
-#	uniprot_mapping_dict['4z0f'] = ['A0A024UZE1']
 	
 	pdbid_to_uniprotid = {}
 	count = 0
@@ -94,8 +119,17 @@ def get_pdbid_to_uniprotid(seq_dict):
 	return pdbid_to_uniprotid
 
 def get_pdbid_to_ligand():
-	""" Compte dans le fichier orginal idx les id pdb manquants
-	des ligands """
+	""" 
+	Extract ligand IDs of all protein-ligand complex
+	While parsing INDEX_general_PL.2020 
+
+	Fill up a dictionary 
+	PDB IDs are keys , ligands are values
+	
+	Return
+	------
+	Dictionnary: pdbid_to_ligand of 16726 elements
+	"""
 	pdbid_to_ligand = {}
 	with open('./pdbbind_index/INDEX_general_PL.2020') as f:
 		count_error = 0
@@ -109,7 +143,6 @@ def get_pdbid_to_ligand():
 					ligand = ligand.split('/')[0]
 				elif len(ligand) != 3:
 					count_error += 1
-					#print(line[:4], ligand)
 					continue
 				pdbid_to_ligand[line[:4]] = ligand
 	print('pdbid_to_ligand',len(pdbid_to_ligand))
@@ -117,13 +150,17 @@ def get_pdbid_to_ligand():
 	return pdbid_to_ligand
 
 def get_pdbid_to_affinity():
-	""" Parse le fichier initial pour recuper les valeurs des constantes d'afinite
-	Mettre les constantes a la meme echelle suivant les unite
-	Compter le nombre de donnee pour lequel il n'y a pas de juste valeur d'affinite
-	return deux dictionnaire 
-	l'un contenant {pdbib: mesure kd/ki/IC50}
-	l'autre contenant {pdbid:}
-	 """
+	""" 
+	Parse the initial file to retrieve the values of the affinity constants.
+	Set the constants to the same scale. 
+	Count the number of data items for which there is no correct affinity value
+
+	Return
+	------
+
+	Dictionnary : pdbid_to_measure
+	Dictionnary : pdbid_to_value
+	"""
 	
 	pdbid_to_measure, pdbid_to_value = {}, {}   # value: -log [M]
 	with open('./pdbbind_index/INDEX_general_PL.2020') as f:
@@ -157,6 +194,16 @@ def get_pdbid_to_affinity():
 	return pdbid_to_measure, pdbid_to_value
 
 def get_mol_dict():
+	"""
+	Using RDKIT module 
+	While parsing ‘Components-pub.sdf’ SDM type of object are obtained
+	The proper name of the SDM object is added in the dictionary
+	Names are keys , rdkit object are values
+	Return
+	------
+
+	Dictionnary : mol_dict of 36308 elements
+	"""
 	mol_dict = {}
 	mols = Chem.SDMolSupplier('Components-pub.sdf')
 	for m in mols:
@@ -168,7 +215,8 @@ def get_mol_dict():
 	return mol_dict
 
 if __name__ == "__main__":
-	# get necessary dicts
+
+	# Function call
 	mol_dict = get_mol_dict()
 	uniprot_dict = get_fasta_dict()
 	pdbid_to_uniprotid = get_pdbid_to_uniprotid(uniprot_dict)
@@ -176,7 +224,7 @@ if __name__ == "__main__":
 	pdbid_to_measure, pdbid_to_value = get_pdbid_to_affinity()
 	print('pdbid_to_measure', len(pdbid_to_measure), 'pdbid_to_value', len(pdbid_to_value))
 
-	#write
+	# Pickle dictionnary to re-use later
 	with open('pdbid_to_ligand_dict','wb') as dw:
 		pickle.dump(pdbid_to_ligand,dw,protocol=0)
 
@@ -211,6 +259,3 @@ if __name__ == "__main__":
 		count_success += 1
 	fw.close()
 	print ('count_success',count_success )
-	#print('fail_step1-4', error_step1, error_step2, error_step3, error_step4)
-
-
