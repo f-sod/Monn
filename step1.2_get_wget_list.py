@@ -12,7 +12,7 @@ def get_pdbid_list():
 
 	Return
 	------
-		list : pdbid_list of 19443 elements 
+	List : pdbid_list of 19443 elements 
 	"""
 	pdbid_list = []
 	with open('./pdbbind_index/INDEX_general_PL.2020') as f1:
@@ -21,10 +21,10 @@ def get_pdbid_list():
 				pdbid_list.append(line.strip().split()[0])
 	print(f"pdbid_list,{len(pdbid_list)}")
 	return pdbid_list
-pdbid_list = get_pdbid_list()
 
 
-# ligand pdb file 
+
+
 def get_pdbid_to_ligand():
 	"""
 	Extract ligand IDs of all protein-ligand complex
@@ -32,7 +32,7 @@ def get_pdbid_to_ligand():
 
 	Return
 	------
-		List: pdbid_to_ligand of 16726 elements 
+	List: pdbid_to_ligand of 16726 elements 
 	"""
 	pdbid_to_ligand = {}
 	with open('./pdbbind_index/INDEX_general_PL.2020') as f:
@@ -51,8 +51,9 @@ def get_pdbid_to_ligand():
 
 if __name__ == "__main__":
 	
+	pdbid_list = get_pdbid_list()
 	pdbid_to_ligand = get_pdbid_to_ligand()
-	#Creation of downloadable file containing ligand links and pdb file 
+	#Creation of downloadable files containing ligand URLs and pdb file URLs
 	with open('out1.2_pdbbind_wget_ligand.txt','w') as fw : 
 		for pdbid in pdbid_list:
 			if pdbid in pdbid_to_ligand:
