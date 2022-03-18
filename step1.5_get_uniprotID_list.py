@@ -1,7 +1,19 @@
 #!/usr/bin/python3
-# ============================= for retrival uniprot sequences ===============
-# first get pdbbind_all_mapping.tab from uniprot using the pdbid list from the above step
+
+__auteurs__ = ""
+__update_by__="ODJE Floriane"
+__data__ = "2022-03"
+
+
 def get_uniprotid():
+	"""
+	Get all possible UniProt IDs
+	While parsing NDEX_general_PL_name.2020
+
+	Return
+	------
+	Set : uniprotid_set containing 5235 elemnents 
+	"""
 	uniprotid_set = set()
 	with open('./pdbbind_index/INDEX_general_PL_name.2020') as f:
 		for line in f.readlines():
@@ -18,9 +30,13 @@ def get_uniprotid():
 	print(f"uniprotid_set step2,{len(uniprotid_set)}")
 	return uniprotid_set
 
-uniprotid_set = get_uniprotid()
-uniprotid_list = list(uniprotid_set)
-with open('out1.5_uniprotid_list.txt','w') as fw:
-	for uniprotid in uniprotid_list:
-		fw.write(uniprotid+'\n')
+if __name__ == "__main__":
+
+	uniprotid_set = get_uniprotid()
+	uniprotid_list = list(uniprotid_set)
+	
+	#Uniprot code list file creation 
+	with open('out1.5_uniprotid_list.txt','w') as fw:
+		for uniprotid in uniprotid_list:
+			fw.write(uniprotid+'\n')
 
