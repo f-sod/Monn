@@ -40,7 +40,7 @@ def get_fasta_dict():
 			for name in lines[0].split(','):
 				if name not in uniprot_dict and lines[1] in uniprot_dict:
 					uniprot_dict[name] = uniprot_dict[lines[1]]
-	print('uniprot_dict step2',len(uniprot_dict))
+	print(f"uniprot_dict step2,{len(uniprot_dict)}")
 	return uniprot_dict
 
 def get_pdbid_to_uniprotid(seq_dict):
@@ -65,8 +65,8 @@ def get_pdbid_to_uniprotid(seq_dict):
 					pdbid_set.add(lines[0])
 				else:
 					pdbid_without_official_uniprot_id.append(lines[0])
-	print('pdbbind_mapping_dict',len(pdbbind_mapping_dict))
-	print('pdbid without matching uniport id', len(pdbid_without_official_uniprot_id ))
+	print(f"pdbbind_mapping_dict,{len(pdbbind_mapping_dict)}")
+	print(f"pdbid without matching uniport id, {len(pdbid_without_official_uniprot_id )}")
 	
 	uniprot_mapping_dict = {}
 	with open('out1.4_pdb_uniprot_mapping.tab') as f:
@@ -78,7 +78,7 @@ def get_pdbid_to_uniprotid(seq_dict):
 					uniprot_mapping_dict[pdbid].append(lines[1])
 				else:
 					uniprot_mapping_dict[pdbid] = [lines[1]]
-	print('uniprot_mapping_dict',len(uniprot_mapping_dict))
+	print(f"uniprot_mapping_dict,{len(uniprot_mapping_dict)}")
 	
 	"""
 	Some pdb id did not get official / matching UniProt id in the file
@@ -113,9 +113,8 @@ def get_pdbid_to_uniprotid(seq_dict):
 			pdbid_to_uniprotid[pdbid] = pdbbind_mapping_dict[pdbid]
 			if pdbbind_mapping_dict[pdbid] not in seq_dict:
 				count += 1
-	print('final pdbid_to_uniprotid', len(pdbid_to_uniprotid))
-	print ('no sequence', count)
-	print (pdbid_to_uniprotid)
+	print(f"final pdbid_to_uniprotid,{len(pdbid_to_uniprotid)}")
+	print (f"no sequence, {count}")
 	return pdbid_to_uniprotid
 
 def get_pdbid_to_ligand():
@@ -145,8 +144,8 @@ def get_pdbid_to_ligand():
 					count_error += 1
 					continue
 				pdbid_to_ligand[line[:4]] = ligand
-	print('pdbid_to_ligand',len(pdbid_to_ligand))
-	print('count_error: no pdb ligand ID', count_error)
+	print(f"pdbid_to_ligand,{len(pdbid_to_ligand)}")
+	print(f"count_error: no pdb ligand ID, {count_error}")
 	return pdbid_to_ligand
 
 def get_pdbid_to_affinity():
@@ -190,7 +189,7 @@ def get_pdbid_to_affinity():
 					print(unit)
 				pdbid_to_measure[pdbid] = measure
 				pdbid_to_value[pdbid] = pvalue
-	print ('count_error not = measurement', count_error)
+	print (f"count_error not = measurement, {count_error}")
 	return pdbid_to_measure, pdbid_to_value
 
 def get_mol_dict():
@@ -211,7 +210,7 @@ def get_mol_dict():
 			continue
 		name = m.GetProp("_Name")
 		mol_dict[name] = m
-	print('mol_dict',len(mol_dict))
+	print(f"mol_dict,{len(mol_dict)}")
 	return mol_dict
 
 if __name__ == "__main__":
@@ -222,7 +221,7 @@ if __name__ == "__main__":
 	pdbid_to_uniprotid = get_pdbid_to_uniprotid(uniprot_dict)
 	pdbid_to_ligand = get_pdbid_to_ligand()
 	pdbid_to_measure, pdbid_to_value = get_pdbid_to_affinity()
-	print('pdbid_to_measure', len(pdbid_to_measure), 'pdbid_to_value', len(pdbid_to_value))
+	print(f"pdbid_to_measure, {len(pdbid_to_measure)}, pdbid_to_value, {len(pdbid_to_value)}")
 
 	# Pickle dictionnary to re-use later
 	with open('pdbid_to_ligand_dict','wb') as dw:
@@ -240,7 +239,7 @@ if __name__ == "__main__":
 			continue
 		ligand = pdbid_to_ligand[pdbid]
 		if ligand not in mol_dict:
-			print ('ligand', ligand)
+			print(f"ligand,{ligand}")
 			error_step3 += 1
 			continue
 		inchi = Chem.MolToInchi(mol_dict[ligand])
@@ -249,7 +248,7 @@ if __name__ == "__main__":
 		if uniprotid in uniprot_dict:
 			seq = uniprot_dict[uniprotid]
 		else:
-			print ('uniprotid', uniprotid)
+			print(f"uniprotid,{uniprotid}")
 			error_step4 += 1
 			continue
 		
@@ -258,4 +257,4 @@ if __name__ == "__main__":
 		fw.write(pdbid+'\t'+uniprotid+'\t'+ligand+'\t'+inchi+'\t'+seq+'\t'+measure+'\t'+str(value)+'\n')
 		count_success += 1
 	fw.close()
-	print ('count_success',count_success )
+	print(f"count_success, {count_success}")
