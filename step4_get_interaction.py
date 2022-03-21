@@ -1,3 +1,9 @@
+#!/usr/bin/python3
+
+__auteurs__ = ""
+__update_by__="ODJE Floriane"
+__data__ = "2022-03"
+
 from rdkit import Chem
 from Bio.PDB import PDBParser, Selection
 from Bio.PDB.Polypeptide import three_to_one
@@ -6,6 +12,15 @@ import pickle
 
 
 def get_pdbid_list():
+	""" 
+	Read and Remove the end character of each line 
+	of the file out1.2_pdbid_list.txt, 
+	which contain all the pdb identifier as a column.
+
+	Return
+	------
+		List : pdbid_list of 19443 elements 
+	"""
 	pdbid_list = []
 	with open('out1.2_pdbid_list.txt') as f:
 		for line in f.readlines():
@@ -13,9 +28,17 @@ def get_pdbid_list():
 	print(f"pdbid_list,{len(pdbid_list)}")
 	return pdbid_list
 
-
-
 def get_bonds(pdbid, ligand, atom_idx_list):
+	""" 
+	Parses the PLIP output file. 
+	Retrives identifiers/name of each field 
+	As well as the type of the bond 
+	The indexes of the elements/atoms interacting
+
+	Return
+	------
+		List : bond_list (huge_list : size depends on the pair ligand-prot)
+	"""
 	bond_list = []
 	f = open('./plip_result/'+pdbid+'_output.txt')
 	isheader = False
@@ -92,13 +115,20 @@ def get_bonds(pdbid, ligand, atom_idx_list):
 	if len(bond_list) != 0:
 		return bond_list
 
-def get_atoms_from_pdb(ligand, pdbid):   
-	# from pdb protein structure, get ligand index list for bond extraction
+def get_atoms_from_pdb(ligand, pdbid): 
+	"""
+	From pdb protein structure, get a ligand index list,
+	for bond extraction using Function from module biophython.
+
+	Return
+	------
+		List : atom_idx_list [2439, 2440, 2441, ...]
+		List : atom_name_list ['OH1', 'N1', 'C1', ...]
+	"""  
 	p = PDBParser()
 	atom_idx_list = []
 	atom_name_list = []
 	structure = p.get_structure(pdbid, './pdb_files/'+pdbid+'.pdb')
-	#seq_dict = {}
 	for model in structure:
 		for chain in model:
 			chain_id = chain.get_id()
@@ -116,6 +146,16 @@ def get_atoms_from_pdb(ligand, pdbid):
 		return None, None
 
 def get_mol_from_ligandpdb(ligand):
+	"""
+	Retrieve the ligand index and the name or their atom,
+	Using function from module biophython.
+
+	Return
+	------
+		List : name_order_list ['OH1', 'N1', 'C1', ...]
+		Dict : name_to_idx_dict {'OH1': 0, 'N1': 1, 'C1': 2}
+		Dict : name_to_element_dict {'OH1': 'O', 'N1': 'N', ...}
+	"""  
 	if not os.path.exists('./pdb_files/'+ligand+'_ideal.pdb') or os.stat('./pdb_files/'+ligand+'_ideal.pdb').st_size == 0 :
 		print(f"File of {ligand} is empty or doesn't exists")
 		return None, None, None
@@ -140,6 +180,16 @@ def get_mol_from_ligandpdb(ligand):
 
 
 def get_interact_atom_name(atom_idx_list, atom_name_list,bond_list):
+	"""
+	Based on the previous created list 
+	This code retrieves, first, the names of the atons involved in interactions
+	Then, the type of interaction and the names of the associated atoms 
+	
+	Return 
+	------
+		List : interact_atom_name_list ['CD2', 'N', ..]
+		List : interact_bond_type_list [('CD2', 'Hydrophobic Interactions_0'), ('N', 'Hydrogen Bonds_1') ..]
+	"""
 	interact_atom_name_list = []
 	interact_bond_type_list = []
 	interact_atom_name_set = set()
@@ -154,6 +204,18 @@ def get_interact_atom_name(atom_idx_list, atom_name_list,bond_list):
 	return interact_atom_name_list, interact_bond_type_list
 
 def get_interact_atom_list(name_order_list, atom_name_to_idx_dict, atom_name_to_element_dict, interact_atom_name_list):
+	"""
+	Same as the previous function but return more elements like
+	a binary list telling if the correspond atom is interacting 
+	or not. 
+
+	Return
+	------
+		List : atom_idx_list [2439, 2440, 2441, ..]
+		List : atom_name_list ['N', 'CA', 'C', ..]
+		List : atom_element_list ['O', 'N', 'C', ..]
+		List : atom_interact_list [0, 0, 0, 0 , .. ]
+	"""
 	atom_idx_list = []
 	atom_name_list = []
 	atom_element_list = []
@@ -167,6 +229,18 @@ def get_interact_atom_list(name_order_list, atom_name_to_idx_dict, atom_name_to_
 	return atom_idx_list, atom_name_list, atom_element_list, atom_interact_list
 
 def get_seq(pdbid):
+	"""
+	Parse the file, transform the 3 letters code 
+	Into the one letter code 
+	Return it as dictionnary where keys are the chain identifier,
+	Values are the sequences  
+	The hetatom part of the pdb file is no considered 
+
+	Return 
+	------
+		Dict : seq_dic {'A':('ITGTSTVGVG....')}
+		Dict : idx_to_aa_dict {'A1': 'I', 'A2': 'T', 'A3': 'G'...')}
+	"""
 	p = PDBParser()
 	structure = p.get_structure(pdbid, './pdb_files/'+pdbid+'.pdb')
 	seq_dict = {}
@@ -191,6 +265,15 @@ def get_seq(pdbid):
 	return seq_dict, idx_to_aa_dict
 
 def get_interact_residue(idx_to_aa_dict, bond_list):
+	"""
+	Same as interact_atom_name function but for the amino acids
+	Meaning that , here , we returns the atoms of the AA, its number 
+	on the proetic chain and the type of interaction which it's involved in 
+	
+	Return : 
+	------
+		List : interact_residue [('A242', 'N', 'Hydrophobic Interactions_0'), ...]
+	"""
 	interact_residue = []
 	for bond in bond_list:
 		if bond[1]+str(bond[3]) not in idx_to_aa_dict:
@@ -204,6 +287,13 @@ def get_interact_residue(idx_to_aa_dict, bond_list):
 		return None
 
 if __name__ == "__main__":
+	"""
+	The code aims to generate a huge dictionary called interaction_dict, 
+	Which , has , as keys the PDB id combined with the ligand 
+	And give access to the bond list, the atom_idx_list, atom_name_list, 
+	atom_element_list, atom_interact_list, interact_bond_type_list, 
+	the sequence_dict and the interact_residue_list. 
+	"""
 	pdbid_to_ligand_file = open("pdbid_to_ligand_dict",'rb')
 	pdbid_to_ligand = pickle.load(pdbid_to_ligand_file)
 	
