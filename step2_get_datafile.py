@@ -32,7 +32,7 @@ def get_fasta_dict():
 			else:
 				seq += line.strip()
 		uniprot_dict[name] = seq
-	print('uniprot_dict step1',len(uniprot_dict))
+	print(f"uniprot_dict step1,{len(uniprot_dict)}")
 	
 	with open('out1.6_uniprot_uniprot_mapping.tab') as f:
 		for line in f.readlines()[1:]:
