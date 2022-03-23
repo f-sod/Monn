@@ -226,7 +226,9 @@ if __name__ == "__main__":
 	# Pickle dictionnary to re-use later
 	with open('pdbid_to_ligand_dict','wb') as dw:
 		pickle.dump(pdbid_to_ligand,dw,protocol=0)
-
+		
+	with open('mol_dict','wb') as md:
+		pickle.dump(mol_dict,md,protocol = 0)
 	count_success = 0
 	fw = open('out2_pdbbind_all_datafile.tsv', 'w')
 	error_step1, error_step2, error_step3, error_step4 = 0, 0, 0, 0
