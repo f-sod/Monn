@@ -75,10 +75,10 @@ if __name__ == "__main__":
 				continue
 			uniprotid, uniprotseq = pdbid_to_uniprot[pdbid]
 			for chain_id in chain_dict:
-				if len(chain_dict[chain_id].keys()) == 0: 
+				if len(list(chain_dict[chain_id].keys())) == 0: 
 					continue
 				fw1.write('>'+pdbid+'_'+chain_id+'\n')
-				fw1.write(str(chain_dict[chain_id].keys())+'\n')
+				fw1.write(str(list(chain_dict[chain_id].keys()))+'\n')
 				fw2.write('>'+pdbid+'_'+chain_id+'_'+uniprotid+'\n')
 				fw2.write(uniprotseq+'\n')
 	print('2/2 Done writing files out6.2_query_pdbbind.fasta and out6.2_target_uniprot_pdbbind.fasta')
