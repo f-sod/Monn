@@ -9,7 +9,7 @@ from rdkit import DataStructs
 from rdkit.ML.Cluster import Butina
 from scipy.cluster.hierarchy import fcluster, linkage, single
 from scipy.spatial.distance import pdist
-import time
+
 
 
 elem_list = ['C', 'N', 'O', 'S', 'F', 'Si', 'P', 'Cl', 'Br', 'Mg', 'Na', 'Ca', 'Fe', 'As', 'Al', 'I', 'B', 'V', 'K', 'Tl', 'Yb', 'Sb', 'Sn', 'Ag', 'Pd', 'Co', 'Se', 'Ti', 'Zn', 'H', 'Li', 'Ge', 'Cu', 'Au', 'Ni', 'Cd', 'In', 'Mn', 'Zr', 'Cr', 'Pt', 'Hg', 'Pb', 'W', 'Ru', 'Nb', 'Re', 'Te', 'Rh', 'Tc', 'Ba', 'Bi', 'Hf', 'Mo', 'U', 'Sm', 'Os', 'Ir', 'Ce','Gd','Ga','Cs', 'unknown']
@@ -20,8 +20,16 @@ max_nb = 6
 
 
 def onek_encoding_unk(x, allowable_set):
-    """A PARTIR DE CE QUE CHERCHE RECUPER LA FONCTION (ATOM,DEGRS,VALENCE),\
-     AJOUTE DE NVLLES VALEURS SI NON PRESENTE DANS KE SET INITIALE"""
+    """
+    Retrieve the position of the atom currently being red 
+    Within the list given as an argument
+    In the so called function
+
+    Return 
+    ------
+    list : The list is a boolean list containing TRUE or 1 at the right 
+           position in the list    
+    """
     if x not in allowable_set:
         x = allowable_set[-1]
     return list(map(lambda s: x == s, allowable_set)) #lambda arguements(variable taken): expression(def of the Function)  
@@ -29,8 +37,19 @@ def onek_encoding_unk(x, allowable_set):
 
 def atom_features(atom):
     """ 
-    Based on the previous function, will return a numpy array features containing \
-    (degree,implicit-explit valence, if aromatic or not)of each atom 
+    Using the one-hot encoding function enables to transform all categorical data into numbers, 
+    A bunch of binomial/binary variables 
+    This function returns an atom features arrays of 0 and 1 for each element of the ligands.  
+    1 list encodes 5 features of an atom 
+    
+    Return
+    ------
+    Numpy array :  N lists , each one characterising an atom by a vector of length 82 
+                the first 63 bits embeds the symbol of the atoms, 
+                the following 6 elements embeds the atom degree’s, 
+                the next 6 the explicit valence, 
+                the next 6 the implicit valence 
+                the last bits : if aromatic or not
     """
     return np.array(onek_encoding_unk(atom.GetSymbol(), elem_list) 
             + onek_encoding_unk(atom.GetDegree(), [0,1,2,3,4,5]) 
@@ -41,8 +60,13 @@ def atom_features(atom):
 
 def bond_features(bond):
     """
-    Selon les tupes de liaison retourne un array ou 
-    dtype=np.floatTurn the bool type into float true=0.0 
+    Retrieve the caracteristic bonds features for each element
+    within a 6 bits vectors 
+
+    Return
+    -------
+    Numpy array : A float vector of 6 elements where each positions 
+                encode for a type of bonds. 
     """
     bt = bond.GetBondType()
     return np.array([bt == Chem.rdchem.BondType.SINGLE, bt == Chem.rdchem.BondType.DOUBLE, bt == Chem.rdchem.BondType.TRIPLE, \
@@ -51,7 +75,21 @@ def bond_features(bond):
 
 
 def Mol2Graph(mol):
-    # convert molecule to GNN input
+    """
+    Generate and store a large amount of data for the ligand
+    Convert molecule into the main GNN input
+    Return 
+    ------
+    Numpy array :   fatoms : Is an array related to the atoms features / one hot encoding
+                             it is an array of [number_atoms x 1] dimension
+                    fbonds : Same principle as fatoms ; dim [number_bonds x 1 ] 
+                    atom_nb : It encodes as a matrix the neighbours of the atoms; dim [n_atoms , max_nb]
+                    bond_nb : Same principle as atom_nb but for edges, dim [n_atoms x max_nb]
+                    num_nbs : This list , 1D matrix of size [n_atoms x 1], 
+                             represents the number of neighbours of the corresponding atom 
+                    num_nbs_mat : same as num_nbs with bool instead of numbers 
+    """
+    
     idxfunc=lambda x:x.GetIdx()
 
     n_atoms = mol.GetNumAtoms()
@@ -93,9 +131,9 @@ def Mol2Graph(mol):
 
 def Batch_Mol2Graph(mol_list):
     """
-    GENERER UNE GRANDE QUANTITE DE DONNEE (BATCH); GRAPH FEATURES DES MOLECULE A PARTIR DE LA LISTE DE MOLECULE
-    OBTENTION DE X TENSORS DE FEATURES SOUS FORME DE LISTE : RES
-    UNZIP DE CHAQUE ELEMENT POUR AFFECTATION MLTIPLE  
+    Obtain the characteristics of each molecule from mol_list
+    Obtain X tensors of characteristics in list form
+    Unzip each element for multiple assignment 
     """
     res = list(map(lambda x:Mol2Graph(x), mol_list))
     fatom_list, fbond_list, gatom_list, gbond_list, nb_list = zip(*res)
@@ -103,11 +141,17 @@ def Batch_Mol2Graph(mol_list):
 
 
 def Protein2Sequence(sequence, ngram=1):
-    # convert sequence to CNN input
-    ''' 
-    en gros on obtient un array a la place de la sequence, dans lequel les lettre sont remplace par les valeurs par defaut 
-    des key(AA) du dico 
-    '''
+    """ 
+    Convert sequence to CNN input
+    Basically you get an array instead of a sequence, 
+    Amino acids are encoded by a random value, 
+    each amino acid gets an assigned value word_dict that is used to encode the protein sequence. 
+    
+    Return
+    ------
+    Numpy array : [len(sequences) x 1 ]
+
+    """
     sequence = sequence.upper()
     word_list = [sequence[i:i+ngram] for i in range(len(sequence)-ngram+1)]
     output = []
@@ -123,14 +167,21 @@ def Protein2Sequence(sequence, ngram=1):
     return np.array(output, np.int32)
 
 
-def Batch_Protein2Sequence(sequence_list, ngram=3): #3 weird output with 3 
+def Batch_Protein2Sequence(sequence_list, ngram=3):  
     res = list(map(lambda x:Protein2Sequence(x,ngram), sequence_list))
     return res
 
 
 def get_mol_dict():
     """ 
-    CONVERSION DES SDF EN OBJET 
+    This function use the Chem.SDMolSupplier method 
+    to return a dictionary of  redkit object
+
+    Return 
+    -------
+    Dict : mol_dict : rdkdit object as a value, 
+                    and the name of the molecule as a key  
+
     """
     if os.path.exists('../data/mol_dict'):
         with open('../data/mol_dict', 'rb') as f:
@@ -150,6 +201,11 @@ def get_mol_dict():
 
 
 def get_pairwise_label(pdbid, interaction_dict):
+    """
+    Basically, this function creates a pairwise matrix saying 
+    if bonds exist (1) or do not exist (0) between non-hydrogen 
+    atoms of a ligand and a  residue of the protein.
+    """
     if pdbid in interaction_dict and pdbid not in ['3rxj','3rme','1gbt']:
         sdf_element = np.array([atom.GetSymbol().upper() for atom in mol.GetAtoms()])
         atom_element = np.array(interaction_dict[pdbid]['atom_element'], dtype=str)
@@ -177,6 +233,14 @@ def get_pairwise_label(pdbid, interaction_dict):
 
 
 def get_fps(mol_list):
+    """
+    This  function turns each element into Morgan fingerprints 
+    return them as a list named fps
+
+    Return 
+    -------
+    List : fps : fingerprints 
+    """
     fps = []
     for mol in mol_list:
         fp = AllChem.GetMorganFingerprintAsBitVect(mol,2,nBits=1024,useChirality=True)
@@ -187,8 +251,17 @@ def get_fps(mol_list):
 
 def calculate_sims(fps1,fps2,simtype='tanimoto'):
     """
-    compute similaryt and distance matrix for ligand  
-    with tanimoto and dice 
+    Compute similarity and distance matrix for ligand  
+    with tanimoto and dice index. 
+    This function initiate an empty matrix of dimension num of fp x num of fp 
+    and compute Tanimoto similarity of the ith element with all the others elements , 
+    the value are put into sims and sims is then put into sim_mat[I,:] 
+    Thus we obtain a square similarity matrix with 1 as a diagonal 
+
+    Return 
+    -------
+    Numpy array : sim_mat :
+
     """
     sim_mat = np.zeros((len(fps1),len(fps2))) #,dtype=np.float32)
     for i in range(len(fps1)):
@@ -221,10 +294,14 @@ def compound_clustering(ligand_list, mol_list):
         print( 'thre', thre, 'total num of compounds', len(ligand_list), 'num of clusters', max(C_clusters), 'max length', max(len_list))
         C_cluster_dict = {ligand_list[i]:C_clusters[i] for i in range(len(ligand_list))}
         with open('../preprocessing/'+MEASURE+'_compound_cluster_dict_'+str(thre),'wb') as f:
-            pickle.dump(C_cluster_dict, f, protocol=0)
+            pickle.dump(C_cluster_dict, f, protocol=5)
 
 
 def protein_clustering(protein_list, idx_list):
+    """
+    Similarity to distance (has to compute the dissimilarity) 
+    so this clustering is based on the difference of the individuals
+    """
     print ('start protein clustering...')
     protein_sim_mat = np.load('../data/pdbbind_protein_sim_mat.npy').astype(np.float32)
     sim_mat = protein_sim_mat[idx_list, :]
@@ -247,18 +324,25 @@ def protein_clustering(protein_list, idx_list):
         print ('thre', thre, 'total num of proteins', len(protein_list), 'num of clusters', max(P_clusters), 'max length', max(len_list))
         P_cluster_dict = {protein_list[i]:P_clusters[i] for i in range(len(protein_list))} #initialement P_cluster[i] but seems to work with any value from 0-2 haven't tested over 2
         with open('../preprocessing/'+MEASURE+'_protein_cluster_dict_'+str(thre),'wb') as f:
-            pickle.dump(P_cluster_dict, f, protocol=0)
+            pickle.dump(P_cluster_dict, f, protocol=5)
     print("Pclus \n", P_clusters)
     print(P_cluster_dict)
 
 def pickle_dump(dictionary, file_name):
-    pickle.dump(dict(dictionary), open(file_name, 'wb'), protocol=0)
+    pickle.dump(dict(dictionary), open(file_name, 'wb'), protocol=5)
 
 if __name__ == "__main__":
     
-    MEASURE = 'KIKD' # 'IC50' or 'KIKD'
-    print ('Create dataset for measurement:', MEASURE)
+    if len(sys.argv) != 2:
+        sys.exit("ERREUR : il faut exactement un argument.")
+    else : 
+        assert sys.argv == 'KIKD' or 'IC50'
+        print(f"Your preprocessing the data for {sys.argv[1]}")
+    
+    MEASURE = sys.argv[1] 
+    print (f"Create dataset for measurement:, {MEASURE}")
     print ('Step 1/5, loading dict...')
+    
     # load label dicts
     mol_dict = get_mol_dict()
     with open('../data/out7_final_pairwise_interaction_dict','rb') as f:
@@ -269,13 +353,15 @@ if __name__ == "__main__":
     atom_dict = defaultdict(lambda: len(atom_dict))
     bond_dict = defaultdict(lambda: len(bond_dict))
     word_dict = defaultdict(lambda: len(word_dict))
+    """ 
+    Create a dictionary with the 
+    key the aa and assigns default values
+    """ 
     for aa in aa_list:
         word_dict[aa]
     word_dict['X']
-    ''' 
-    cree un dictionnaire avec comme key les aa et assigne des valeurs par defaut
-    '''
-    # get labels
+
+    # Get labels
     i = 0
     pair_info_dict = {}
     with open('../data/pdbbind_all_datafile.tsv','r') as f:
@@ -321,12 +407,7 @@ if __name__ == "__main__":
     valid_pairwise_mat_list = []
     mol_inputs, seq_inputs = [], []
     
-    # get inputs
-    #caffeine = 'CN1C=NC2=C1C(=O)N(C(=O)N2C)C'
-    #mol=Chem.MolFromSmiles(caffeine)
-    #fa, fb, anb, bnb, nbs_mat = Mol2Graph(mol)
-    
-    #get inputs
+    #Get inputs
     for item in pair_info_dict:
         pdbid, cid, pid, value, mol, seq, pairwise_mask, pairwise_mat = pair_info_dict[item]
         fa, fb, anb, bnb, nbs_mat = Mol2Graph(mol)
@@ -343,16 +424,15 @@ if __name__ == "__main__":
         wlnn_train_list.append(pdbid)
 
             
-                
+    # Get data pack           
     print ('Step 4/5, saving data...')
-    # get data pack
     fa_list, fb_list, anb_list, bnb_list, nbs_mat_list = zip(*mol_inputs)
     data_pack = [np.array(fa_list), np.array(fb_list), np.array(anb_list), np.array(bnb_list), np.array(nbs_mat_list), np.array(seq_inputs), \
     np.array(valid_value_list), np.array(valid_cid_list), np.array(valid_pid_list), np.array(valid_pairwise_mask_list), np.array(valid_pairwise_mat_list)]
     
     # save data
     with open('../preprocessing/pdbbind_all_combined_input_'+MEASURE, 'wb') as f:
-        pickle.dump(data_pack, f, protocol=0)
+        pickle.dump(data_pack, f, protocol=5)
     
     np.save('../preprocessing/wlnn_train_list_'+MEASURE, wlnn_train_list)
     
@@ -363,11 +443,12 @@ if __name__ == "__main__":
     print ('Step 5/5, clustering...')
     compound_list = list(set(valid_cid_list))
     protein_list = list(set(valid_pid_list))
-    # compound clustering
+    
+    # Compound clustering
     mol_list = [mol_dict[ligand] for ligand in compound_list]
     compound_clustering(compound_list, mol_list)
     
-    # protein clustering
+    # Protein clustering
     ori_protein_list = np.load('../data/pdbbind_protein_list.npy')
     ori_protein_list = [str(id).replace('b','').strip("'") for id in ori_protein_list]
     idx_list=[]
@@ -375,21 +456,17 @@ if __name__ == "__main__":
     for i,pid in enumerate(protein_list):
         if pid not in ori_protein_list:
             to_remove.append(pid)
-            #to_remove.append(ori_protein_list.index(pid))
             continue
         else:
             idx_list.append(ori_protein_list.index(pid))
     for i in to_remove:
-        protein_list.remove(i) 
-        
+        protein_list.remove(i)       
     print(f"protein_list:{len(protein_list)}")
     print(f"idx_list:{len(idx_list)},{idx_list}")
     protein_clustering(protein_list, idx_list)
-
-
-
+    
     print ('='*50)
-    print (f"Finish generating dataset for measurement \n, {MEASURE}")
+    print (f"Finish generating dataset for measurement: {MEASURE}")
     print (f"Number of valid samples, {len(valid_value_list)}")
-    print (f"Number of unique compounds,{len(compound_list)}")
+    print (f"Number of unique compounds, {len(compound_list)}")
     print (f"Number of unique proteins, {len(protein_list)}")
